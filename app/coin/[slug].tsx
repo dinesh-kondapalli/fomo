@@ -1,0 +1,646 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { getCoinByAnyId } from '@/constants/crypto';
+import { fonts, theme } from '@/constants/theme';
+import { useCoinDetails } from '@/hooks/use-coin-details';
+import { resolveCoinIdFromLiveQuery } from '@/services/market';
+import type { ChartRangeDays } from '@/services/market';
+
+const chartWidth = Dimensions.get('window').width - 32;
+const chartHeight = 238;
+const fallbackCoinIdBySymbol: Record<string, string> = {
+  btc: 'bitcoin',
+  eth: 'ethereum',
+  xrp: 'ripple',
+  bnb: 'binancecoin',
+  sol: 'solana',
+  doge: 'dogecoin',
+};
+
+const ranges: Array<{ label: string; days: ChartRangeDays; pointsWindow?: number }> = [
+  { label: '1H', days: '1', pointsWindow: 12 },
+  { label: '4H', days: '1', pointsWindow: 48 },
+  { label: '1D', days: '1', pointsWindow: 288 },
+  { label: '7D', days: '7' },
+  { label: '6M', days: '180' },
+  { label: 'ALL', days: '365' },
+];
+
+const holders = [
+  { id: '1', avatarUrl: 'https://i.pravatar.cc/120?img=47', name: 'ALABAMA', hold: '2d 12h avg. hold', value: '$27,687.03', change: '4.42%', positive: true },
+  { id: '2', avatarUrl: 'https://i.pravatar.cc/120?img=18', name: 'listopherchi', hold: '12d 4h avg. hold', value: '$20,536.25', change: '0.97%', positive: true },
+  { id: '3', avatarUrl: 'https://i.pravatar.cc/120?img=12', name: 'Awe2', hold: '3d 17h avg. hold', value: '$12,954.10', change: '7.25%', positive: false },
+];
+
+type ChartPoint = { x: number; y: number };
+type DetailTab = 'holders' | 'feed' | 'about';
+
+function toChartPoints(values: number[], width: number, height: number): ChartPoint[] {
+  if (values.length < 2) return [];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const innerHeight = height - 12;
+
+  return values.map((value, index) => {
+    const x = (index / (values.length - 1)) * width;
+    const y = 6 + (1 - (value - min) / range) * innerHeight;
+    return { x, y };
+  });
+}
+
+function linePath(points: ChartPoint[]): string {
+  if (!points.length) return '';
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+}
+
+function areaPath(points: ChartPoint[], width: number, height: number): string {
+  if (!points.length) return '';
+  return `${linePath(points)} L ${width} ${height} L 0 ${height} Z`;
+}
+
+export default function CoinScreen() {
+  const params = useLocalSearchParams<{
+    slug?: string | string[];
+    symbol?: string;
+    name?: string;
+    iconUrl?: string;
+    price?: string;
+    marketCap?: string;
+    change?: string;
+    positive?: string;
+  }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const rawParam = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+  const incomingId = rawParam ? decodeURIComponent(rawParam) : 'bitcoin';
+  const knownCoin = getCoinByAnyId(incomingId);
+  const resolvedFromLive = resolveCoinIdFromLiveQuery(incomingId);
+  const coinId = knownCoin?.coinId ?? resolvedFromLive ?? fallbackCoinIdBySymbol[incomingId.toLowerCase()] ?? incomingId;
+
+  const [selectedRange, setSelectedRange] = useState(0);
+  const [activeTab, setActiveTab] = useState<DetailTab>('holders');
+  const range = ranges[selectedRange] ?? ranges[0];
+  const { details, loading, error } = useCoinDetails(coinId, range.days);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const navSymbol = typeof params.symbol === 'string' ? params.symbol : undefined;
+  const navName = typeof params.name === 'string' ? params.name : undefined;
+  const navIconUrl = typeof params.iconUrl === 'string' && params.iconUrl.trim() ? params.iconUrl : undefined;
+  const navPrice = typeof params.price === 'string' ? params.price : undefined;
+  const navMarketCap = typeof params.marketCap === 'string' ? params.marketCap : undefined;
+  const navChange = typeof params.change === 'string' ? params.change : undefined;
+  const navPositive = params.positive === '1';
+
+  const fallbackPriceNumber = navPrice ? Number.parseFloat(navPrice.replace(/[^0-9.]/g, '')) : 0;
+  const activePriceNumber = details?.priceNumber ?? (Number.isFinite(fallbackPriceNumber) ? fallbackPriceNumber : 0);
+
+  const changeDollar = details
+    ? Math.abs((details.priceNumber * details.change1h) / 100)
+    : activePriceNumber > 0 && navChange
+      ? Math.abs((activePriceNumber * Number.parseFloat(navChange.replace('%', ''))) / 100)
+      : 0;
+
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, 28, 76],
+    outputRange: [1, 0.55, 0],
+    extrapolate: 'clamp',
+  });
+
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [0, 90],
+    outputRange: [0, -12],
+    extrapolate: 'clamp',
+  });
+
+  const actionOpacity = scrollY.interpolate({
+    inputRange: [0, 36, 66],
+    outputRange: [1, 1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const miniPriceOpacity = scrollY.interpolate({
+    inputRange: [34, 72, 110],
+    outputRange: [0, 0.3, 1],
+    extrapolate: 'clamp',
+  });
+
+  const miniPriceTranslate = scrollY.interpolate({
+    inputRange: [34, 110],
+    outputRange: [8, 0],
+    extrapolate: 'clamp',
+  });
+
+  const coinIconSource = details?.iconUrl ? { uri: details.iconUrl } : navIconUrl ? { uri: navIconUrl } : knownCoin?.icon;
+  const symbol = details?.symbol ?? navSymbol ?? knownCoin?.symbol ?? incomingId.slice(0, 4).toUpperCase();
+  const name = details?.name ?? navName ?? knownCoin?.name ?? incomingId;
+  const displayPrice = details?.price ?? navPrice ?? '--';
+  const displayCap = details?.marketCap ?? navMarketCap?.replace(' MC', '') ?? '--';
+  const displayPositive = details ? details.positive : navPositive;
+  const displayChangeLabel = details?.change1hLabel ?? navChange ?? '--';
+
+  const fallbackChart = useMemo(() => {
+    if (activePriceNumber <= 0) return [] as number[];
+    const bump = activePriceNumber * 0.0012;
+    return [
+      activePriceNumber - bump,
+      activePriceNumber - bump * 0.45,
+      activePriceNumber - bump * 0.7,
+      activePriceNumber + bump * 0.12,
+      activePriceNumber + bump * 0.28,
+      activePriceNumber + bump * 0.08,
+      activePriceNumber + bump * 0.36,
+    ];
+  }, [activePriceNumber]);
+
+  const chartValues = useMemo(() => {
+    const base = details?.chart && details.chart.length >= 2 ? details.chart : fallbackChart;
+    if (!base.length) return base;
+    const windowSize = range.pointsWindow;
+    if (!windowSize || base.length <= windowSize) {
+      return base;
+    }
+    return base.slice(base.length - windowSize);
+  }, [details?.chart, fallbackChart, range.pointsWindow]);
+
+  const points = useMemo(() => toChartPoints(chartValues, chartWidth, chartHeight), [chartValues]);
+  const graphLine = useMemo(() => linePath(points), [points]);
+  const graphArea = useMemo(() => areaPath(points, chartWidth, chartHeight), [points]);
+  const lastPoint = points[points.length - 1];
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="light" />
+
+      <Animated.ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 164 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+      >
+        <View style={styles.headerRow}>
+          <Pressable style={styles.iconButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color={theme.colors.textMuted} />
+          </Pressable>
+
+          <View style={styles.coinRow}>
+            <View style={styles.coinImageWrap}>
+              {coinIconSource ? <Image source={coinIconSource} style={styles.coinImage} /> : <Text style={styles.fallbackIconText}>{symbol.slice(0, 1)}</Text>}
+              {details?.iconUrl || navIconUrl ? <Ionicons name="checkmark-circle" size={16} color={theme.colors.accentBlue} style={styles.verified} /> : null}
+            </View>
+            <View style={styles.coinTextWrap}>
+              <Text style={styles.coinSymbol}>{symbol}</Text>
+              <View style={styles.coinNameRow}>
+                <Text style={styles.coinName}>{name}</Text>
+                <Ionicons name="copy-outline" size={12} color={theme.colors.textSubtle} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerRight}>
+            <Animated.View style={[styles.actionsRow, { opacity: actionOpacity }]}> 
+              <Ionicons name="refresh-outline" size={23} color={theme.colors.textMuted} />
+              <Ionicons name="star-outline" size={23} color={theme.colors.textMuted} />
+              <Ionicons name="share-social-outline" size={23} color={theme.colors.textMuted} />
+            </Animated.View>
+
+            <Animated.View style={[styles.miniPriceWrap, { opacity: miniPriceOpacity, transform: [{ translateY: miniPriceTranslate }] }]}> 
+              <Text style={styles.headerPrice}>{displayPrice}</Text>
+              <Text style={[styles.headerPct, displayPositive ? styles.positive : styles.negative]}>{displayChangeLabel}</Text>
+            </Animated.View>
+          </View>
+        </View>
+
+        <Animated.View style={[styles.valueRow, { opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }]}> 
+          <View>
+            <Text style={styles.mainPrice}>{displayPrice}</Text>
+            <Text style={[styles.priceSub, displayPositive ? styles.positive : styles.negative]}>
+              {(details || navChange)
+                ? `${displayPositive ? '▲' : '▼'} $${changeDollar.toFixed(2)} (${displayChangeLabel}) Past hour`
+                : 'Loading...'}
+            </Text>
+          </View>
+          <View style={styles.capBlock}>
+            <Text style={styles.capValue}>{displayCap}</Text>
+            <Text style={styles.capLabel}>Market cap</Text>
+          </View>
+        </Animated.View>
+
+        <View style={styles.chartWrap}>
+          {loading && !details ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={theme.colors.textPrimary} />
+            </View>
+          ) : graphLine ? (
+            <Svg width={chartWidth} height={chartHeight}>
+              <Defs>
+                <SvgLinearGradient id="fillGradient" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0%" stopColor="#23D26E" stopOpacity="0.28" />
+                  <Stop offset="100%" stopColor="#23D26E" stopOpacity="0" />
+                </SvgLinearGradient>
+              </Defs>
+
+              {Array.from({ length: 12 }).map((_, index) => (
+                <Line
+                  key={`h-${index}`}
+                  x1={0}
+                  x2={chartWidth}
+                  y1={(chartHeight / 11) * index}
+                  y2={(chartHeight / 11) * index}
+                  stroke="rgba(148,153,188,0.09)"
+                  strokeWidth={1}
+                  strokeDasharray="2 7"
+                />
+              ))}
+
+              <Path d={graphArea} fill="url(#fillGradient)" />
+              <Path d={graphLine} stroke="#23D26E" strokeWidth={4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+              {lastPoint ? (
+                <>
+                  <Circle cx={lastPoint.x} cy={lastPoint.y} r={20} fill="rgba(35,210,110,0.16)" />
+                  <Circle cx={lastPoint.x} cy={lastPoint.y} r={7} fill="#23D26E" />
+                </>
+              ) : null}
+            </Svg>
+          ) : (
+            <View style={styles.loadingWrap}>
+              <Text style={styles.errorText}>No graph data available</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.rangeRow}>
+          {ranges.map((item, index) => (
+            <Pressable
+              key={item.label}
+              onPress={() => setSelectedRange(index)}
+              style={[styles.rangeButton, index === selectedRange && styles.rangeButtonActive]}
+            >
+              <Text style={[styles.rangeText, index === selectedRange && styles.rangeTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.switchRow}>
+          <Pressable style={[styles.switchItem, activeTab === 'holders' && styles.switchItemActive]} onPress={() => setActiveTab('holders')}>
+            <Text style={[styles.switchLabel, activeTab === 'holders' ? styles.switchLabelActive : styles.switchLabelMuted]}>Holders (2,257)</Text>
+          </Pressable>
+          <Pressable style={[styles.switchItem, activeTab === 'feed' && styles.switchItemActive]} onPress={() => setActiveTab('feed')}>
+            <Text style={[styles.switchLabel, activeTab === 'feed' ? styles.switchLabelActive : styles.switchLabelMuted]}>Feed</Text>
+          </Pressable>
+          <Pressable style={[styles.switchItem, activeTab === 'about' && styles.switchItemActive]} onPress={() => setActiveTab('about')}>
+            <Text style={[styles.switchLabel, activeTab === 'about' ? styles.switchLabelActive : styles.switchLabelMuted]}>About</Text>
+          </Pressable>
+        </View>
+
+        {activeTab === 'holders' ? (
+          <View style={styles.holdersWrap}>
+            {holders.map((holder) => (
+              <View key={holder.id} style={styles.holderRow}>
+                <Image source={{ uri: holder.avatarUrl }} style={styles.holderAvatar} />
+                <View style={styles.holderInfo}>
+                  <Text style={styles.holderName}>{holder.name}</Text>
+                  <View style={styles.holdRow}>
+                    <Ionicons name="time-outline" size={11} color={theme.colors.textSubtle} />
+                    <Text style={styles.holderHold}>{holder.hold}</Text>
+                  </View>
+                </View>
+                <View style={styles.holderRight}>
+                  <Text style={styles.holderValue}>{holder.value}</Text>
+                  <Text style={[styles.holderPct, holder.positive ? styles.positive : styles.negative]}>{holder.positive ? '▲' : '▼'} {holder.change}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.placeholderWrap}>
+            <Text style={styles.placeholderText}>{activeTab === 'feed' ? 'Feed entries coming soon.' : 'About section coming soon.'}</Text>
+          </View>
+        )}
+
+        {error ? <Text style={styles.errorText}>Unable to refresh live data right now.</Text> : null}
+      </Animated.ScrollView>
+
+      <View style={[styles.bottomCta, { paddingBottom: Math.max(insets.bottom, 10) }]}> 
+        <View style={styles.feeRow}>
+          <Ionicons name="pricetag" size={14} color={theme.colors.accentBlue} />
+          <Text style={styles.feeText}>Lowest fees: 0.05%</Text>
+          <Ionicons name="information-circle-outline" size={14} color={theme.colors.textSubtle} />
+        </View>
+
+        <Pressable style={styles.depositButton}>
+          <Text style={styles.depositText}>Deposit to buy</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    paddingHorizontal: 16,
+  },
+  headerRow: {
+    marginTop: 1,
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  coinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  coinImageWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'visible',
+    backgroundColor: '#12172A',
+  },
+  coinImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  fallbackIconText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 18,
+  },
+  verified: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+  },
+  coinTextWrap: {
+    justifyContent: 'center',
+  },
+  coinSymbol: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 16,
+  },
+  coinNameRow: {
+    marginTop: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  coinName: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  headerRight: {
+    width: 112,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  actionsRow: {
+    position: 'absolute',
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  miniPriceWrap: {
+    position: 'absolute',
+    right: 0,
+    alignItems: 'flex-end',
+  },
+  headerPrice: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 14,
+  },
+  headerPct: {
+    fontFamily: fonts.headingSemi,
+    fontSize: 11,
+  },
+  valueRow: {
+    marginTop: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  mainPrice: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 48,
+    lineHeight: 50,
+    letterSpacing: -1,
+  },
+  priceSub: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  capBlock: {
+    marginTop: 6,
+    alignItems: 'flex-end',
+  },
+  capValue: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 20,
+  },
+  capLabel: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  chartWrap: {
+    height: chartHeight,
+    marginBottom: 8,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rangeRow: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rangeButton: {
+    height: 32,
+    minWidth: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rangeButtonActive: {
+    backgroundColor: '#1B1F30',
+  },
+  rangeText: {
+    color: theme.colors.textSubtle,
+    fontFamily: fonts.headingSemi,
+    fontSize: 11,
+  },
+  rangeTextActive: {
+    color: theme.colors.textPrimary,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(118,124,172,0.25)',
+    marginBottom: 4,
+  },
+  switchItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  switchItemActive: {
+    borderBottomColor: theme.colors.accentBlue,
+  },
+  switchLabel: {
+    fontFamily: fonts.headingSemi,
+    fontSize: 14,
+  },
+  switchLabelActive: {
+    color: theme.colors.textPrimary,
+  },
+  switchLabelMuted: {
+    color: theme.colors.textSubtle,
+  },
+  holdersWrap: {
+    paddingTop: 10,
+    gap: 12,
+  },
+  holderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  holderAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#162338',
+  },
+  holderInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  holderName: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 17,
+  },
+  holdRow: {
+    marginTop: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  holderHold: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  holderRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  holderValue: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 17,
+  },
+  holderPct: {
+    fontFamily: fonts.headingSemi,
+    fontSize: 11,
+  },
+  placeholderWrap: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 12,
+  },
+  bottomCta: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 6,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(118,124,172,0.14)',
+    backgroundColor: 'rgba(4,3,12,0.96)',
+  },
+  feeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  feeText: {
+    color: theme.colors.accentBlue,
+    fontFamily: fonts.headingSemi,
+    fontSize: 13,
+  },
+  depositButton: {
+    marginTop: 8,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accentBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3346C6',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  depositText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 15,
+  },
+  positive: {
+    color: theme.colors.profit,
+  },
+  negative: {
+    color: theme.colors.loss,
+  },
+  errorText: {
+    marginTop: 8,
+    textAlign: 'center',
+    color: theme.colors.textSubtle,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+});

@@ -1,0 +1,375 @@
+import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { friendsPnL, leaderboard, recommendedFriends } from '@/constants/mockData';
+import { fonts, theme } from '@/constants/theme';
+
+type LeaderboardTab = 'friends' | 'leaderboard';
+
+export default function LeaderboardScreen() {
+  const [tab, setTab] = useState<LeaderboardTab>('friends');
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="light" />
+
+      <View style={styles.topTabs}>
+        <Pressable style={[styles.topTabItem, tab === 'friends' && styles.topTabItemActive]} onPress={() => setTab('friends')}>
+          <Text style={[styles.tabText, tab === 'friends' ? styles.tabTextActive : styles.tabTextMuted]}>Friends (3)</Text>
+        </Pressable>
+        <Pressable style={[styles.topTabItem, tab === 'leaderboard' && styles.topTabItemActive]} onPress={() => setTab('leaderboard')}>
+          <Text style={[styles.tabText, tab === 'leaderboard' ? styles.tabTextActive : styles.tabTextMuted]}>Leaderboard</Text>
+        </Pressable>
+      </View>
+
+      {tab === 'friends' ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <View style={styles.rankCard}>
+            <View style={styles.rankAvatar}>
+              <Text style={styles.rankAvatarText}>∞</Text>
+            </View>
+            <View style={styles.rankTextWrap}>
+              <Text style={styles.rankName}>DrabCuteEgret</Text>
+              <Text style={styles.rankHandle}>@DrabCuteEgret • You</Text>
+            </View>
+            <Text style={styles.rankDollar}>$0</Text>
+          </View>
+
+          <View style={styles.headlineRow}>
+            <Text style={styles.heading}>My friends</Text>
+            <View style={styles.timeframeRow}>
+              <View style={styles.timePill}><Text style={styles.timePillText}>24h</Text></View>
+              <Text style={styles.timeframeText}>7d</Text>
+              <Text style={styles.timeframeText}>30d</Text>
+            </View>
+          </View>
+
+          {friendsPnL.map((friend) => (
+            <View key={friend.id} style={styles.friendRow}>
+              <Image source={{ uri: friend.avatarUrl }} style={styles.friendAvatar} />
+              <View style={styles.friendInfo}>
+                <Text style={styles.friendName}>{friend.name}</Text>
+                <Text style={styles.friendHandle}>{friend.handle}</Text>
+              </View>
+              <View style={styles.friendRight}>
+                <Text style={[styles.friendGain, friend.positive ? styles.positive : styles.negative]}>{friend.gain}</Text>
+                <View style={styles.friendTags}>
+                  {friend.tags.map((tag, idx) => (
+                    <View key={`${friend.id}-${tag}`} style={[styles.tagBubble, { marginLeft: idx === 0 ? 0 : -6 }]}> 
+                      <Text style={styles.tagText}>{tag.slice(0, 2)}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.tagCountBubble}><Text style={styles.tagCountText}>{friend.extra}</Text></View>
+                </View>
+              </View>
+            </View>
+          ))}
+
+          <Text style={styles.headingSecondary}>Recommended</Text>
+          {recommendedFriends.map((friend) => (
+            <View key={friend.id} style={styles.recommendRow}>
+              <Image source={{ uri: friend.avatarUrl }} style={styles.recommendAvatar} />
+              <View style={styles.recommendInfo}>
+                <Text style={styles.recommendName}>{friend.name}</Text>
+                <Text style={styles.recommendHandle}>{friend.handle}</Text>
+              </View>
+              <Pressable style={styles.followButton}>
+                <Text style={styles.followText}>Follow</Text>
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.content}>
+          <View style={styles.headlineRow}> 
+            <Text style={styles.heading}>Top traders</Text>
+            <View style={styles.timeframeRow}>
+              <View style={styles.timePill}><Text style={styles.timePillText}>24h</Text></View>
+              <Text style={styles.timeframeText}>7d</Text>
+              <Text style={styles.timeframeText}>30d</Text>
+              <Text style={styles.timeframeText}>All</Text>
+            </View>
+          </View>
+
+          <FlatList
+            data={leaderboard}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.rankRow}>
+                <Text style={styles.rank}>{item.medal ? item.medal : `${item.rank}.`}</Text>
+                <View style={styles.infoWrap}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.handle}>{item.handle}</Text>
+                </View>
+                <Text style={styles.gain}>{item.gain}</Text>
+              </View>
+            )}
+          />
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 98,
+  },
+  topTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(118, 123, 161, 0.23)',
+  },
+  topTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  topTabItemActive: {
+    borderBottomColor: theme.colors.accentBlue,
+  },
+  tabText: {
+    fontFamily: fonts.headingSemi,
+    fontSize: 12,
+  },
+  tabTextMuted: {
+    color: theme.colors.textSubtle,
+  },
+  tabTextActive: {
+    color: theme.colors.textPrimary,
+  },
+  rankCard: {
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(118, 123, 161, 0.22)',
+    backgroundColor: '#111423',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  rankAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF8D53',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankAvatarText: {
+    color: '#1A1D34',
+    fontFamily: fonts.heading,
+    fontSize: 17,
+  },
+  rankTextWrap: {
+    marginLeft: 10,
+  },
+  rankName: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 15,
+  },
+  rankHandle: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  rankDollar: {
+    marginLeft: 'auto',
+    color: theme.colors.textMuted,
+    fontFamily: fonts.headingSemi,
+    fontSize: 15,
+  },
+  headlineRow: {
+    marginTop: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heading: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontFamily: fonts.headingSemi,
+  },
+  headingSecondary: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontFamily: fonts.headingSemi,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  timeframeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timePill: {
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161A2B',
+    borderWidth: 1,
+    borderColor: 'rgba(136, 142, 198, 0.42)',
+  },
+  timePillText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 10,
+  },
+  timeframeText: {
+    color: theme.colors.textSubtle,
+    fontFamily: fonts.headingSemi,
+    fontSize: 10,
+  },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  friendInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  friendName: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 14,
+  },
+  friendHandle: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  friendRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  friendGain: {
+    fontFamily: fonts.headingSemi,
+    fontSize: 13,
+  },
+  positive: {
+    color: theme.colors.profit,
+  },
+  negative: {
+    color: theme.colors.loss,
+  },
+  friendTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagBubble: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1D2136',
+    borderWidth: 1,
+    borderColor: 'rgba(117, 123, 161, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 7,
+  },
+  tagCountBubble: {
+    width: 27,
+    height: 20,
+    borderRadius: 10,
+    marginLeft: 4,
+    backgroundColor: '#1D2136',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagCountText: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 9,
+  },
+  recommendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  recommendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  recommendInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  recommendName: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 14,
+  },
+  recommendHandle: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  followButton: {
+    width: 94,
+    height: 40,
+    borderRadius: 11,
+    backgroundColor: theme.colors.accentBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 13,
+  },
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  rank: {
+    width: 38,
+    color: theme.colors.textMuted,
+    fontFamily: fonts.headingSemi,
+    fontSize: 12,
+  },
+  infoWrap: {
+    flex: 1,
+  },
+  name: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 13,
+  },
+  handle: {
+    color: theme.colors.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 10,
+  },
+  gain: {
+    color: theme.colors.profit,
+    fontFamily: fonts.headingSemi,
+    fontSize: 12,
+  },
+});
