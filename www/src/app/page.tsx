@@ -1,6 +1,6 @@
 "use client";
 
-import { SplashScreenView } from "@root/shared/screens/splash-screen";
+import { SplashScreenView } from "@/shared/screens/splash-screen";
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { MobileShell } from "@/components/app-shell";

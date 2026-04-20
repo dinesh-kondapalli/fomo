@@ -1,6 +1,6 @@
 "use client";
 
-import { theme } from "@root/constants/theme";
+import { theme } from "@/constants/theme";
 import type { ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 

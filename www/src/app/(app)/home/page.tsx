@@ -1,6 +1,6 @@
 "use client";
 
-import { HomeScreenView } from "@root/shared/screens/home-screen";
+import { HomeScreenView } from "@/shared/screens/home-screen";
 import { useRouter } from "next/navigation";
 import { coinHref } from "@/lib/navigation";
 

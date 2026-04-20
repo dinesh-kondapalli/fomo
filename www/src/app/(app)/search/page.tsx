@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchScreenView } from "@root/shared/screens/search-screen";
+import { SearchScreenView } from "@/shared/screens/search-screen";
 import { useRouter } from "next/navigation";
 import { coinHref } from "@/lib/navigation";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import type { CoinRouteParams } from "@root/shared/navigation";
-import { CoinScreenView } from "@root/shared/screens/coin-screen";
+import type { CoinRouteParams } from "@/shared/navigation";
+import { CoinScreenView } from "@/shared/screens/coin-screen";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { MobileShell } from "@/components/app-shell";
 

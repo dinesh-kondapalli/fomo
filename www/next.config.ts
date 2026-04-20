@@ -1,9 +1,14 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const { DefinePlugin } = require("webpack");
 
+const appDir = __dirname;
+const repoRoot = path.resolve(appDir, "..");
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  outputFileTracingRoot: repoRoot,
   transpilePackages: [
     "react-native",
     "react-native-web",
@@ -23,8 +28,8 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
       "react-native$": "react-native-web",
-      "@": "/home/arman/Code/fomo/www/src",
-      "@root": "/home/arman/Code/fomo",
+      "@": path.resolve(appDir, "src"),
+      "@root": repoRoot,
     };
 
     config.resolve.extensions = [

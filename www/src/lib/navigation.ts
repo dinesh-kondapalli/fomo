@@ -1,4 +1,4 @@
-import type { CoinRouteParams } from "@root/shared/navigation";
+import type { CoinRouteParams } from "@/shared/navigation";
 
 export function coinHref(params: CoinRouteParams) {
   const search = new URLSearchParams();

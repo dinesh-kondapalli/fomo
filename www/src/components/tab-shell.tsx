@@ -3,8 +3,8 @@
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { theme } from "@root/constants/theme";
-import type { AppTabKey } from "@root/shared/navigation";
+import { theme } from "@/constants/theme";
+import type { AppTabKey } from "@/shared/navigation";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { LoginScreenView } from "@root/shared/screens/login-screen";
+import { LoginScreenView } from "@/shared/screens/login-screen";
 import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/app-shell";
 
