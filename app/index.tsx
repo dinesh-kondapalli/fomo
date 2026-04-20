@@ -7,7 +7,8 @@ export default function SplashScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <SplashScreenView onFinish={() => router.replace('/login')} />
+      {/* <SplashScreenView onFinish={() => router.replace('/create-wallet')} /> */}
+      <SplashScreenView onFinish={() => router.replace('/(tabs)')} />
     </>
   );
 }

@@ -7,8 +7,11 @@ import { MobileShell } from "@/components/app-shell";
 
 export default function Page() {
   const router = useRouter();
+  // const handleCreateWalletFinish = useCallback(() => {
+  //   router.replace("/create-wallet");
+  // }, [router]);
   const handleFinish = useCallback(() => {
-    router.replace("/login");
+    router.replace("/home");
   }, [router]);
 
   return (

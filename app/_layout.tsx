@@ -59,7 +59,7 @@ function RootLayoutNav() {
     <ThemeProvider value={DarkTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="create-wallet" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="coin/[slug]" options={{ headerShown: false }} />
       </Stack>

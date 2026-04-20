@@ -1,15 +1,15 @@
 "use client";
 
-import { LoginScreenView } from "@/shared/screens/login-screen";
+import { CreateWalletScreenView } from "@/shared/screens/create-wallet-screen";
 import { useRouter } from "next/navigation";
 import { MobileShell } from "@/components/app-shell";
 
-export default function LoginPage() {
+export default function CreateWalletPage() {
   const router = useRouter();
 
   return (
     <MobileShell withFrame>
-      <LoginScreenView onAuthenticated={() => router.replace("/home")} />
+      <CreateWalletScreenView onContinue={() => router.replace("/home")} />
     </MobileShell>
   );
 }
