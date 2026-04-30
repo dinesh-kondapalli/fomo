@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 
-import { FeedScreenView } from '../../shared/screens/feed-screen';
+import { ComingSoonScreenView } from '../../shared/screens/coming-soon-screen';
 
 export default function FeedScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <FeedScreenView />
+      <ComingSoonScreenView title="Feed coming soon" />
     </>
   );
 }

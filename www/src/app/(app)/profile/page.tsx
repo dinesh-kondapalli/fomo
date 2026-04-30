@@ -1,7 +1,7 @@
 "use client";
 
-import { ProfileScreenView } from "@/shared/screens/profile-screen";
+import { ComingSoonScreenView } from "@/shared/screens/coming-soon-screen";
 
 export default function ProfilePage() {
-  return <ProfileScreenView />;
+  return <ComingSoonScreenView title="Profile coming soon" />;
 }

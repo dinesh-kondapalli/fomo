@@ -1,18 +1,66 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Chip, TokenRow, TopTradeCard } from '../../components/fomo-ui';
 import { topTrades } from '../../constants/mockData';
 import { fonts, theme } from '../../constants/theme';
 import { useLiveTokens } from '../../hooks/use-live-tokens';
+import { bwickChain, getBwickBalance } from '../../lib/bwick-chain';
+import { getStoredWallet, type StoredWallet } from '../../lib/wallet-store';
 import { SafeAreaView } from '../lib/safe-area';
 import type { CoinRouteParams } from '../navigation';
 
-export function HomeScreenView({ onOpenCoin }: { onOpenCoin: (params: CoinRouteParams) => void }) {
+export function HomeScreenView({
+  onOpenCoin,
+  onCreateWallet,
+}: {
+  onOpenCoin: (params: CoinRouteParams) => void;
+  onCreateWallet?: () => void;
+}) {
   const { tokens, loading, error } = useLiveTokens();
   const [activeMarketTab, setActiveMarketTab] = useState<'crypto' | 'trending' | 'mostHeld' | 'gainers'>('crypto');
   const [showDepositSheet, setShowDepositSheet] = useState(false);
+  const [showSendSheet, setShowSendSheet] = useState(false);
+  const [wallet, setWallet] = useState<StoredWallet | null>(null);
+  const [balance, setBalance] = useState('0 BWICK');
+  const [balanceError, setBalanceError] = useState('');
+
+  useEffect(() => {
+    const storedWallet = getStoredWallet();
+    setWallet(storedWallet);
+  }, []);
+
+  useEffect(() => {
+    if (!wallet?.address) return;
+    const address = wallet.address;
+    let cancelled = false;
+
+    async function loadBalance() {
+      try {
+        const result = await getBwickBalance(address);
+        if (!cancelled) {
+          setBalance(result.display);
+          setBalanceError('');
+        }
+      } catch {
+        if (!cancelled) setBalanceError('Unable to load BWICK balance');
+      }
+    }
+
+    loadBalance();
+    const timer = setInterval(loadBalance, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [wallet?.address]);
+
+  async function copyAddress() {
+    if (!wallet?.address) return;
+    await Clipboard.setStringAsync(wallet.address);
+  }
 
   const sortedTokens = useMemo(() => {
     if (activeMarketTab === 'gainers') {
@@ -48,11 +96,24 @@ export function HomeScreenView({ onOpenCoin }: { onOpenCoin: (params: CoinRouteP
 
       <View style={styles.balanceRow}>
         <View>
-          <Text style={styles.balance}>$0.00</Text>
-          <Text style={styles.duration}>-- 24h</Text>
+          <Text style={styles.balance}>{wallet ? balance : 'No BWICK wallet'}</Text>
+          <Text style={styles.duration}>{wallet ? shortAddress(wallet.address) : 'Create a wallet to receive BWICK'}</Text>
         </View>
-        <Pressable style={styles.depositButton} onPress={() => setShowDepositSheet(true)}>
-          <Text style={styles.depositText}>Deposit</Text>
+        <Pressable style={styles.depositButton} onPress={wallet ? () => setShowDepositSheet(true) : onCreateWallet}>
+          <Text style={styles.depositText}>{wallet ? 'Receive' : 'Create wallet'}</Text>
+        </Pressable>
+      </View>
+
+      {balanceError ? <Text style={styles.infoText}>{balanceError}</Text> : null}
+
+      <View style={styles.walletActions}>
+        <Pressable style={styles.actionButton} onPress={() => setShowDepositSheet(true)} disabled={!wallet}>
+          <Ionicons name="qr-code-outline" size={16} color={theme.colors.textPrimary} />
+          <Text style={styles.actionText}>Receive</Text>
+        </Pressable>
+        <Pressable style={styles.actionButton} onPress={() => setShowSendSheet(true)} disabled={!wallet}>
+          <Ionicons name="paper-plane-outline" size={16} color={theme.colors.textPrimary} />
+          <Text style={styles.actionText}>Send</Text>
         </Pressable>
       </View>
 
@@ -121,39 +182,42 @@ export function HomeScreenView({ onOpenCoin }: { onOpenCoin: (params: CoinRouteP
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowDepositSheet(false)} />
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Deposit with</Text>
+            <Text style={styles.sheetTitle}>Receive BWICK</Text>
 
-            <Pressable style={styles.sheetOption}>
-              <View>
-                <Text style={styles.sheetOptionTitle}>Crypto</Text>
-                <Text style={styles.sheetOptionDesc}>Receive USDC from a crypto wallet</Text>
-              </View>
-              <Ionicons name="qr-code-outline" size={28} color={theme.colors.textPrimary} />
-            </Pressable>
+            {wallet ? <View style={styles.addressCard}>
+              <Text style={styles.sheetOptionDesc}>Send only BWICK assets on {bwickChain.chainName} to this address.</Text>
+              <Text style={styles.receiveAddress}>{wallet.address}</Text>
+            </View> : null}
 
-            <Pressable style={styles.sheetOption}>
+            <Pressable style={styles.sheetOption} onPress={copyAddress} disabled={!wallet}>
               <View>
-                <View style={styles.appleRow}>
-                  <Text style={styles.sheetOptionTitle}>Apple Pay</Text>
-                  <Text style={styles.newBadge}>New</Text>
-                </View>
-                <Text style={styles.sheetOptionDesc}>Buy PENGU, WIF, GIGA, and 20+ tokens</Text>
+                <Text style={styles.sheetOptionTitle}>Copy address</Text>
+                <Text style={styles.sheetOptionDesc}>{wallet ? 'Use this to receive BWICK' : 'Create a wallet first'}</Text>
               </View>
-              <Ionicons name="logo-apple" size={30} color={theme.colors.textPrimary} />
+              <Ionicons name="copy-outline" size={28} color={theme.colors.textPrimary} />
             </Pressable>
+          </View>
+        </View>
+      </Modal>
 
-            <Pressable style={styles.sheetOption}>
-              <View>
-                <Text style={styles.sheetOptionTitle}>Debit</Text>
-                <Text style={styles.sheetOptionDesc}>Deposit USDC with a debit card</Text>
-              </View>
-              <Ionicons name="card-outline" size={30} color={theme.colors.textPrimary} />
-            </Pressable>
+      <Modal visible={showSendSheet} transparent animationType="slide" onRequestClose={() => setShowSendSheet(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowSendSheet(false)} />
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Send BWICK</Text>
+            <Text style={styles.sheetOptionDesc}>
+              Wallet and balance are connected. Sending requires transaction signing and gas setup before broadcasting.
+            </Text>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
   );
+}
+
+function shortAddress(address: string) {
+  return `${address.slice(0, 10)}...${address.slice(-6)}`;
 }
 
 const styles = StyleSheet.create({
@@ -215,6 +279,28 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontFamily: fonts.headingSemi,
     fontSize: 14,
+  },
+  walletActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  actionButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#111424',
+    borderWidth: 1,
+    borderColor: 'rgba(118, 123, 161, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  actionText: {
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.headingSemi,
+    fontSize: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -313,6 +399,21 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontFamily: fonts.body,
     fontSize: 11,
+  },
+  addressCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(118, 123, 161, 0.22)',
+    backgroundColor: '#111424',
+    padding: 12,
+    marginBottom: 10,
+  },
+  receiveAddress: {
+    marginTop: 8,
+    color: theme.colors.textPrimary,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
   },
   appleRow: {
     flexDirection: 'row',

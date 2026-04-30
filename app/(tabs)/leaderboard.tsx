@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 
-import { LeaderboardScreenView } from '../../shared/screens/leaderboard-screen';
+import { ComingSoonScreenView } from '../../shared/screens/coming-soon-screen';
 
 export default function LeaderboardScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <LeaderboardScreenView />
+      <ComingSoonScreenView title="Leaderboard coming soon" />
     </>
   );
 }

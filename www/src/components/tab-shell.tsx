@@ -3,19 +3,13 @@
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { theme } from "@/constants/theme";
-import type { AppTabKey } from "@/shared/navigation";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import type { ViewStyle } from "react-native";
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { theme } from "@/constants/theme";
+import type { AppTabKey } from "@/shared/navigation";
 
 const iconColor = theme.colors.textMuted;
 const activeColor = theme.colors.textPrimary;
@@ -84,16 +78,16 @@ export function TabShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const activeTab = getActiveTab(pathname);
-  const { width } = useWindowDimensions();
-  const shellWidth = Math.min(width, 430);
-  const tabBarWidth = Math.max(shellWidth - 36, 0);
   const webTabBarStyle: ViewStyle | null =
     Platform.OS === "web"
       ? ({
           position: "fixed",
-          left: "50%",
-          width: tabBarWidth,
-          transform: [{ translateX: -tabBarWidth / 2 }],
+          left: 0,
+          right: 0,
+          width: "calc(100% - 36px)",
+          maxWidth: 394,
+          marginLeft: "auto",
+          marginRight: "auto",
           zIndex: 1000,
           elevation: 1000,
         } as unknown as ViewStyle)

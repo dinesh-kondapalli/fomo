@@ -7,7 +7,10 @@ export default function HomeScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <HomeScreenView onOpenCoin={(params) => router.push({ pathname: '/coin/[slug]', params })} />
+      <HomeScreenView
+        onOpenCoin={(params) => router.push({ pathname: '/coin/[slug]', params })}
+        onCreateWallet={() => router.push('/create-wallet')}
+      />
     </>
   );
 }

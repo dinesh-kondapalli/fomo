@@ -1,10 +1,45 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { fonts } from '../../constants/theme';
+import { getBwickChainStatus, isValidBwickAddress } from '../../lib/bwick-chain';
+import { generateWallet, type GeneratedWallet } from '../../lib/wallet-keygen';
 import { SafeAreaView } from '../lib/safe-area';
 
-export function CreateWalletScreenView({ onContinue }: { onContinue: () => void }) {
+export function CreateWalletScreenView({ onContinue }: { onContinue: (wallet: GeneratedWallet) => void }) {
+  const [creating, setCreating] = useState(false);
+  const [address, setAddress] = useState('');
+  const [chainStatus, setChainStatus] = useState('BWICK chain ready');
+  const [error, setError] = useState('');
+
+  async function handleCreateWallet() {
+    if (creating) return;
+    setCreating(true);
+    setError('');
+
+    try {
+      const wallet = await generateWallet();
+      if (!isValidBwickAddress(wallet.address)) {
+        throw new Error('Generated BWICK address failed validation');
+      }
+      setAddress(wallet.address);
+
+      try {
+        const status = await getBwickChainStatus();
+        setChainStatus(`Connected to ${status.chainId}`);
+      } catch {
+        setChainStatus('BWICK wallet created. Chain node is currently unreachable.');
+      }
+
+      onContinue(wallet);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create BWICK wallet');
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <LinearGradient colors={['#576AF1', '#8F9CFF']} style={styles.gradient}>
       <SafeAreaView style={styles.safe}>
@@ -33,10 +68,13 @@ export function CreateWalletScreenView({ onContinue }: { onContinue: () => void 
             />
           </View>
 
-          <Pressable onPress={onContinue} style={styles.primaryButton}>
-            <Text style={styles.primaryText}>Create wallet</Text>
+          <Pressable onPress={handleCreateWallet} style={styles.primaryButton} disabled={creating}>
+            <Text style={styles.primaryText}>{creating ? 'Creating BWICK wallet...' : 'Create wallet'}</Text>
           </Pressable>
 
+          {address ? <Text style={styles.address}>{address}</Text> : null}
+          <Text style={styles.chainStatus}>{chainStatus}</Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           <Text style={styles.terms}>Your social name is how others find you in the app.</Text>
         </View>
       </SafeAreaView>
@@ -122,6 +160,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
+  },
+  address: {
+    textAlign: 'center',
+    color: '#FFFFFF',
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: fonts.body,
+    marginBottom: 8,
+  },
+  chainStatus: {
+    textAlign: 'center',
+    color: '#E8EAFC',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: fonts.body,
+    marginBottom: 8,
+  },
+  error: {
+    textAlign: 'center',
+    color: '#FFE2E2',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: fonts.body,
+    marginBottom: 8,
   },
   primaryText: {
     color: '#090A14',

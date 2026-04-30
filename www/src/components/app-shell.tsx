@@ -1,8 +1,8 @@
 "use client";
 
-import { theme } from "@/constants/theme";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { theme } from "@/constants/theme";
 
 export function MobileShell({
   children,
@@ -11,8 +11,13 @@ export function MobileShell({
   children: ReactNode;
   withFrame?: boolean;
 }) {
+  const [mounted, setMounted] = useState(false);
   const { width } = useWindowDimensions();
-  const showFrame = withFrame && width >= 768;
+  const showFrame = mounted && withFrame && width >= 768;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <View style={styles.page}>

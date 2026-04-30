@@ -1,7 +1,7 @@
 "use client";
 
-import { LeaderboardScreenView } from "@/shared/screens/leaderboard-screen";
+import { ComingSoonScreenView } from "@/shared/screens/coming-soon-screen";
 
 export default function LeaderboardPage() {
-  return <LeaderboardScreenView />;
+  return <ComingSoonScreenView title="Leaderboard coming soon" />;
 }

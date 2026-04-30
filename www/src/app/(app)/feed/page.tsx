@@ -1,7 +1,7 @@
 "use client";
 
-import { FeedScreenView } from "@/shared/screens/feed-screen";
+import { ComingSoonScreenView } from "@/shared/screens/coming-soon-screen";
 
 export default function FeedPage() {
-  return <FeedScreenView />;
+  return <ComingSoonScreenView title="Feed coming soon" />;
 }
